@@ -18,6 +18,7 @@ public class Robot extends IterativeRobot {
     RobotDrive drive;
     Talon lift, grab;
     CameraServer server;
+    Relay grip;
     Timer auto;
     /**
      * This function is run when the robot is first started up and should be
@@ -37,10 +38,11 @@ public class Robot extends IterativeRobot {
        
     ///*
         //Initialization of lift and grab
-        grab = new Talon(4);
+        //grab = new Talon(4);
     //*/
         lift = new Talon(5);
     
+        grip = new Relay(0);
         
         //Initialization of drive class
         drive = new RobotDrive(fL, bL, fR, bR);
@@ -81,11 +83,14 @@ public class Robot extends IterativeRobot {
             	
             	//Grabber Control 
             	if (xBox.getButtonX()) {
-            		grab.set(1);
+            		//grab.set(1);
+            		grip.set(Relay.Value.kForward);
             	} else if (xBox.getButtonB()) {
-            		grab.set(-1);
+            		//grab.set(-1);
+            		grip.set(Relay.Value.kReverse);
             	} else {
-            		grab.set(0);
+            		//grab.set(0);
+            		grip.set(Relay.Value.kOff);;
             	}
             	
             	
@@ -127,9 +132,14 @@ public class Robot extends IterativeRobot {
     public void autonomousPeriodic() {
     	
     	pMove(2, 1, "f");
-    	pDelay(.25);
-    	pMove(2, 0, "r");
-    	
+    	pDelay(.1);
+    	pMove(.9, 0, "r");
+    	pDelay(.1);
+    	pMove(2, 1, "f");
+    	pDelay(.1);
+    	pMove(.9, 0, "l");
+    	pDelay(.1);
+    	pMove(2, 1, "b");
  
     	SmartDashboard.putString("DB/String 4", "plz work plox");
     }
@@ -227,6 +237,31 @@ public class Robot extends IterativeRobot {
   		auto.reset();
 		
 		grab.set(0);
+    } 
+    
+    public void pGrip(double x, String str) {
+    	if (str == "in") {
+    		auto.start();
+        	do {
+        		grip.set(Relay.Value.kForward);
+        	} while (auto.get() <= x);
+    	}
+    	else if (str == "out") {
+    		auto.start();
+        	do {
+        		grip.set(Relay.Value.kReverse);
+        	} while (auto.get() <= x);
+    	}
+    	else {
+    		auto.start();
+        	do {
+        		grip.set(Relay.Value.kOff);
+        	} while (auto.get() <= x);
+    	}
+    	auto.stop();
+  		auto.reset();
+		
+  		grip.set(Relay.Value.kOff);
     } 
     
 }
