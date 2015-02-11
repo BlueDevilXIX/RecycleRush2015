@@ -3,6 +3,7 @@
 package org.usfirst.frc.team611.robot;
 
 import edu.wpi.first.wpilibj.CameraServer;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.Relay;
@@ -20,6 +21,7 @@ public class Robot extends IterativeRobot {
     CameraServer server;
     Relay grip;
     Timer auto;
+    DigitalInput limitSwitch;
     /**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -47,6 +49,9 @@ public class Robot extends IterativeRobot {
         //Initialization of drive class
         drive = new RobotDrive(fL, bL, fR, bR);
         
+        //Initializes the limit switch
+        limitSwitch = new DigitalInput(0);
+        
         //This lets the camera work
         server = CameraServer.getInstance();
         server.setQuality(50);
@@ -69,28 +74,30 @@ public class Robot extends IterativeRobot {
         while(isOperatorControl() ) {
             while (isOperatorControl() && isEnabled() && !xBox.getButtonStart()) {
             	//Drive Control
-            	drive.mecanumDrive_Cartesian ( (xBox.getLeftJoyX() / 2), (xBox.getLeftJoyY() / 2), (xBox.getRightJoyX() / 2), 0 );
-            	//drive.mecanumDrive_Cartesian (xBox.getLeftJoyX(), xBox.getLeftJoyY(), xBox.getRightJoyX(), 0);
+            	//drive.mecanumDrive_Cartesian ( (xBox.getLeftJoyX() / 2), (xBox.getLeftJoyY() / 2), (xBox.getRightJoyX() / 2), 0 );
+            	drive.mecanumDrive_Cartesian (xBox.getLeftJoyX(), xBox.getLeftJoyY(), xBox.getRightJoyX(), 0);
             	
             	//Lifting Control
-            	if (xBox.getButtonY()) {	//up
-            		lift.set(-0.5);
+            	if (xBox.getButtonY()) {		//up
+           			lift.set(-1.0);
             	} else if (xBox.getButtonA()) {	//down
-            		lift.set(0.5);
+            		if (limitSwitch.get()) {
+            			lift.set(1.0);			//off
+            	}
             	} else {
             		lift.set(0);
             	}
             	
             	//Grabber Control 
-            	if (xBox.getButtonX()) {
+            	if (xBox.getButtonB()) {
             		//grab.set(1);
-            		grip.set(Relay.Value.kForward);
-            	} else if (xBox.getButtonB()) {
+            		grip.set(Relay.Value.kForward);	//out
+            	} else if (xBox.getButtonX()) {
             		//grab.set(-1);
-            		grip.set(Relay.Value.kReverse);
+            		grip.set(Relay.Value.kReverse);	//in
             	} else {
             		//grab.set(0);
-            		grip.set(Relay.Value.kOff);;
+            		grip.set(Relay.Value.kOff);;	//off
             	}
             	
             	
@@ -129,19 +136,31 @@ public class Robot extends IterativeRobot {
      * This function is called periodically during autonomous
      */
     
-    public void autonomousPeriodic() {
+    public void autonomousPeriodic() {		//auto run period
     	
     	pMove(2, 1, "f");
     	pDelay(.1);
-    	pMove(.9, 0, "r");
+    	pLift(.1, "down");
     	pDelay(.1);
-    	pMove(2, 1, "f");
+    	pGrip(.1, "in");
     	pDelay(.1);
-    	pMove(.9, 0, "l");
+    	pLift(.1, "up");
     	pDelay(.1);
-    	pMove(2, 1, "b");
- 
+    	pMove(.5, 1, "b");
+    	pDelay(.1);
+    	pMove(.5, 2, "r");
+    	pDelay(.1);
+    	pMove(.5, 1, "f");
+    	pDelay(.1);
+    	pLift(.1, "down");
+    	pDelay(.1);
+    	pGrip(.1, "out");
+    	pDelay(.1);
+    	
     	SmartDashboard.putString("DB/String 4", "plz work plox");
+    	
+    	pDelay(5);
+    	
     }
     
     /**
@@ -151,7 +170,7 @@ public class Robot extends IterativeRobot {
     
     }
     
-    public void pDelay(double t) {
+    public void pDelay(double t) {	//t: time
     	auto.start();
     	do {
     		SmartDashboard.putString("DB/String 9", "---------");
@@ -161,11 +180,11 @@ public class Robot extends IterativeRobot {
   		auto.reset();
     }
     
-    public void pMove(double x, int y, String str) {	//x: time (seconds)		y: type (1: y-axis, 2: x-axis, 0: rotate)		str: (f)orward, (b)ack, (r)ight, (l)eft
-    	int dir = 0;
-    	double spd = .25;
-    	double rot = .25;
-    	double sid = .5;
+    public void pMove(double x, int y, String str) {	//x: time (seconds)	y: type (1: y-axis, 2: x-axis, 0: rotate) str: (f)orward, (b)ack, (r)ight, (l)eft
+    	int dir = 0;		//forward, left = -1, back, right = 1
+    	double spd = .25;	//forward and back speed
+    	double rot = .25;	//rotation speed
+    	double sid = .5;	//strafing speed
     	if (y == 1) {
     		rot = 0;
     		sid = 0;
@@ -197,8 +216,8 @@ public class Robot extends IterativeRobot {
 		drive.mecanumDrive_Cartesian(0, 0, 0, 0);
     }
     
-    public void pLift(double x, String str) {
-    	int dir = 0;
+    public void pLift(double x, String str) {		//x: time, str: up or down
+    	int dir = 0;		//up = -1, down = 1
     	if (str == "up") {
     		dir = -1;
     	}
@@ -239,17 +258,17 @@ public class Robot extends IterativeRobot {
 		grab.set(0);
     } 
     
-    public void pGrip(double x, String str) {
-    	if (str == "in") {
-    		auto.start();
-        	do {
-        		grip.set(Relay.Value.kForward);
-        	} while (auto.get() <= x);
-    	}
-    	else if (str == "out") {
+    public void pGrip(double x, String str) {		//x: time, str: in and out
+    	if (str == "out") {
     		auto.start();
         	do {
         		grip.set(Relay.Value.kReverse);
+        	} while (auto.get() <= x);
+    	}
+    	else if (str == "if") {
+    		auto.start();
+        	do {
+        		grip.set(Relay.Value.kForward);
         	} while (auto.get() <= x);
     	}
     	else {
